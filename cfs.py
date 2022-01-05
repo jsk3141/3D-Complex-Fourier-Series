@@ -138,66 +138,85 @@ class Ellipse(Quaternion):
         self.data = [a, b, c, d, e, f]
 
 
+        self.nT = math.atan(-(a**2+c**2+e**2)/(a*b+c*d+e*f))
+        self.x_hat = self.get_scaled_directional_vector(self.ellipse(0))
+        self.y_hat = self.get_scaled_directional_vector(self.ellipse(self.nT))
+        p, q, r = self.x_hat[1:]
+        l, m, n = self.y_hat[1:]
+        alpha = a*p+c*q+e*r
+        beta  = b*l+d*m+f*n
+        gamma = a*l+c*m+e*n
+        delta = b*p+d*q+f*r
+        scale1 = (alpha+beta)/2
+        scale2 = (gamma-delta)/2
+        scale3 = (alpha-beta)/2
+        scale4 = (gamma+delta)/2
+
+        self.plus_way_rotation_cosine = self.add_vector( self.scale_vector(scale1, self.x_hat), self.scale_vector(scale2, self.y_hat) )
+        self.plus_way_rotation_sine = self.add_vector( self.scale_vector(scale1, self.y_hat), self.scale_vector(-scale2, self.x_hat) )
+
+        self.minus_way_rotation_cosine = self.add_vector( self.scale_vector(scale3, self.x_hat), self.scale_vector(scale4, self.y_hat) )
+        self.minus_way_rotation_sine = self.add_vector( self.scale_vector(scale3, self.y_hat), self.scale_vector(-scale4, self.x_hat) )
 
 
+        # self.C = ( ( a**2 + c**2 + e**2 ) - ( b**2 + d**2 + f**2 ) ) / ( a*b + c*d + e*f ) # constant for calculating tp
+        # self.first_derivative_0_point = math.atan( (1/2) * ( -self.C + math.sqrt( self.C**2 + 4 ) ) )
         
+        # self.extreme_ts = []
+        # for n in range(5):
+        #     value = self.first_derivative_0_point + n*(math.pi/2)
+        #     if 0 <= value < 2*math.pi:
+        #         self.extreme_ts.append( value )
 
-
-
-
-
-
-
-
-        self.C = ( ( a**2 + c**2 + e**2 ) - ( b**2 + d**2 + f**2 ) ) / ( a*b + c*d + e*f ) # constant for calculating tp
-        self.first_derivative_0_point = math.atan( (1/2) * ( -self.C + math.sqrt( self.C**2 + 4 ) ) )
+        # self.extreme_values = []
+        # for t in self.extreme_ts:
+        #     self.extreme_values.append(self.ellipse(t))
         
-        self.extreme_ts = []
-        for n in range(5):
-            value = self.first_derivative_0_point + n*(math.pi/2)
-            if 0 <= value < 2*math.pi:
-                self.extreme_ts.append( value )
-
-        self.extreme_values = []
-        for t in self.extreme_ts:
-            self.extreme_values.append(self.ellipse(t))
+        # self.extreme_length = []
+        # for v in self.extreme_values:
+        #     self.extreme_length.append(self.vector_length(v))
         
-        self.extreme_length = []
-        for v in self.extreme_values:
-            self.extreme_length.append(self.vector_length(v))
+        # self.major_t_index = 0 if self.extreme_length[0] > self.extreme_length[1] else 1
+        # self.minor_t_index = 1 - self.major_t_index
+
+        # self.major_t = self.extreme_ts[self.major_t_index]
+        # self.minor_t = self.extreme_ts[self.minor_t_index]
+
+        # self.major_radius = self.extreme_values[self.major_t_index]
+        # self.minor_radius = self.extreme_values[self.minor_t_index]
         
-        self.major_t_index = 0 if self.extreme_length[0] > self.extreme_length[1] else 1
-        self.minor_t_index = 1 - self.major_t_index
+        # self.major_length = self.extreme_length[self.major_t_index]
+        # self.minor_length = self.extreme_length[self.minor_t_index]
 
-        self.major_t = self.extreme_ts[self.major_t_index]
-        self.minor_t = self.extreme_ts[self.minor_t_index]
+        # self.pn_circle_length = (self.major_length + self.minor_length) / 2
+        # self.mn_circle_length = (self.major_length - self.minor_length) / 2
 
-        self.major_radius = self.extreme_values[self.major_t_index]
-        self.minor_radius = self.extreme_values[self.minor_t_index]
-        
-        self.major_length = self.extreme_length[self.major_t_index]
-        self.minor_length = self.extreme_length[self.minor_t_index]
+        # self.pn_original = self.get_scaled_directional_vector(self.major_radius, self.pn_circle_length) # plus way rotation
+        # self.mn_original = self.get_scaled_directional_vector(self.major_radius, self.mn_circle_length) # minus way rotation
+        # self.t_original = self.major_t
 
-        self.pn_circle_length = (self.major_length + self.minor_length) / 2
-        self.mn_circle_length = (self.major_length - self.minor_length) / 2
+        # self.pDn = self.get_scaled_directional_vector(self.cross_product(self.extreme_values[1], self.extreme_values[0]), 1)
+        # self.mDn = self.get_scaled_directional_vector(self.pDn, -1)
 
-        self.pn_original = self.get_scaled_directional_vector(self.major_radius, self.pn_circle_length) # plus way rotation
-        self.mn_original = self.get_scaled_directional_vector(self.major_radius, self.mn_circle_length) # minus way rotation
-        self.t_original = self.major_t
-
-        self.pDn = self.get_scaled_directional_vector(self.cross_product(self.extreme_values[1], self.extreme_values[0]), 1)
-        self.mDn = self.get_scaled_directional_vector(self.pDn, -1)
-
-        self.pCn = super().quaternion_vector_rotation(self.pn_original, self.pDn, -self.major_t)
-        self.mCn = super().quaternion_vector_rotation(self.mn_original, self.mDn, -self.major_t)
+        # self.pCn = super().quaternion_vector_rotation(self.pn_original, self.pDn, -self.major_t)
+        # self.mCn = super().quaternion_vector_rotation(self.mn_original, self.mDn, -self.major_t)
 
 
-        self.plus_way_rotation_cosine = self.pCn
-        self.plus_way_rotation_sine = super().quaternion_vector_rotation(self.pCn, self.pDn, math.pi/2)
+        # self.plus_way_rotation_cosine = self.pCn
+        # self.plus_way_rotation_sine = super().quaternion_vector_rotation(self.pCn, self.pDn, math.pi/2)
 
-        self.minus_way_rotation_cosine = self.mCn
-        self.minus_way_rotation_sine = super().quaternion_vector_rotation(self.mCn, self.mDn, math.pi/2)
+        # self.minus_way_rotation_cosine = self.mCn
+        # self.minus_way_rotation_sine = super().quaternion_vector_rotation(self.mCn, self.mDn, math.pi/2)
         pass
+    
+    def scale_vector(self, scale, v):
+        _, x, y, z = v
+        return [0, x*scale, y*scale, z*scale]
+    
+    def add_vector(self, v1, v2):
+        _, x1, y1, z1 = v1
+        _, x2, y2, z2 = v2
+        return [0, x1+x2, y1+y2, z1+z2]
 
     def ellipse(self, t):
         a, b, c, d, e, f = self.data
@@ -210,7 +229,7 @@ class Ellipse(Quaternion):
         _, x, y, z = v
         return math.sqrt( x**2 + y**2 + z**2 )
 
-    def get_scaled_directional_vector(self, v, sc):
+    def get_scaled_directional_vector(self, v, sc=1):
         _, x, y, z = v
         scaling = sc / self.vector_length(v)
         return [0, scaling*x, scaling*y, scaling*z]
