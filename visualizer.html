@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!--three.js lib req-->
+    <script src="./js/three.js"></script>
+    <script src="./js/OrbitControls.js"></script>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex_Fourier_Series</title>
+    <style>
+        *{
+            margin: 0;
+            padding: 0;
+        }
+        canvas{
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        //basic fundamentals
+        t = 0
+        d = 0.0001
+
+        //load data
+        let data = {
+            vw : window.innerWidth,
+            vh : window.innerHeight,
+            updateWindowSize : ()=>{
+                data.vw = window.innerWidth;
+                data.vh = window.innerHeight;
+                return true;
+            }
+        }
+
+        //set
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, data.vw/data.vh, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(data.vw, data.vh);
+        document.body.appendChild(renderer.domElement);
+        window.addEventListener("resize", ()=>{
+            data.updateWindowSize();
+            renderer.setSize(data.vw, data.vh);
+            camera.aspect = data.vw/data.vh;
+            camera.updateProjectionMatrix();
+        })
+
+        //controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        camera.position.z = 5;
+
+        class Sphere {
+            constructor(R, x, y, z, color=0xF08080, quality=64, visual=true, opacity=1.0){
+                this.translate = {
+                    x : x,
+                    y : y,
+                    z : z
+                }
+                this.color = color
+                this.opacity = opacity
+                this.quality = quality;
+                this.geometry = new THREE.SphereGeometry(R, this.quality, this.quality/2);
+                this.material = new THREE.MeshBasicMaterial({color : this.color, transparent : true, opacity : this.opacity});
+                this.sphere = new THREE.Mesh(this.geometry, this.material);
+                this.sphere.position.set(this.translate.x, this.translate.y, this.translate.z);
+                if(visual) this.visualSphere()
+            }
+            visualSphere(){
+                scene.add(this.sphere)
+            }
+        }
+
+        class Rotating_Vector {
+            constructor(n, Cn, Dn, sine, visual=true, color=0xf08080){
+                this.n = n
+                this.Cn = Cn
+                this.Dn = Dn
+                this.cosine = Cn
+                this.sine = sine
+                this.Origin_vector = new THREE.Vector3( 0, 0, 0 )
+                this.Cn_vector = new THREE.Vector3( Cn[0], Cn[1], Cn[2] )
+                this.Dn_vector = new THREE.Vector3( Dn[0], Dn[1], Dn[2] )
+                this.Dn_vector.normalize()
+                this.material = new THREE.LineBasicMaterial({ color: color });
+                this.points = [this.Origin_vector, this.Cn_vector];
+                this.geometry = new THREE.BufferGeometry().setFromPoints( this.points );
+                this.line = new THREE.Line( this.geometry, this.material );
+                if (visual) scene.add( this.line );
+                this.headWeight = this.cosine
+                this.nt = 0
+            }
+            updateVector(dt, origin){
+                this.nt += dt*this.n
+                this.headWeight = this.addVector( this.scaleVector( Math.cos(this.nt), this.cosine ), this.scaleVector( Math.sin(this.nt), this.sine ) )
+                this.line.rotateOnAxis(this.Dn_vector, -this.n*dt)
+                this.line.position.set( origin[0], origin[1], origin[2] )
+            }
+            scaleVector(scale, v){
+                return [scale*v[0], scale*v[1], scale*v[2]]
+            }
+            addVector(v1, v2){
+                return [v1[0]+v2[0], v1[1]+v2[1], v1[2]+v2[2]]
+            }
+        }
+
+        class Complex_Fourier_Series {
+            constructor(limit){
+                this.limit = limit
+                this.data = [
+                    {n : 0, Cn : [0.49999999999999983, 0.49999999999999994, 0.5], Dn : [1, 0, 0], sine : [1, 0, 0]},
+                    { n : 1, Cn : [-0.30396355092700245, -0.607927101854005, -0.30396355092700234], Dn : [-0.5773502691896258, 0.5773502691896256, -0.5773502691896257], sine : [0.526480313854618, -3.1708083473269704e-17, -0.5264803138546182] },
+                    { n : -1, Cn : [-1.0962496620734926e-14, -2.1846488618535664e-14, -1.088399199780073e-14], Dn : [0.5773502691896258, -0.5773502691896256, 0.5773502691896257], sine : [1.8896951794547643e-14, -4.5324665183688345e-17, -1.8942276459731336e-14] },
+                    { n : 2, Cn : [7.225041212295433e-18, 9.777959541596698e-13, 4.754522755443206e-13], Dn : [4.922185470226389e-05, -0.43729298596782784, 0.8993190990969502], sine : [1.0872625218534914e-12, 1.6905025270715587e-17, -5.1288390229577836e-17] },
+                    { n : -2, Cn : [-4.2046102351600546e-17, -9.776849318572073e-13, -4.753982891582217e-13], Dn : [-4.922185470225844e-05, 0.43729298596782784, -0.8993190990969502], sine : [-1.0871390695084824e-12, 1.4412877372770192e-17, 6.650993130612211e-17] },
+                    { n : 3, Cn : [-0.07429769362480583, 0.06627963441804473, -0.06306134961069869], Dn : [-0.22705563416539062, -0.7927437652503708, -0.5656881310849798], sine : [-0.09153277051614415, -0.022817463807694498, 0.06871530670844969] },
+                    { n : -3, Cn : [-0.07429769362480576, 0.06627963441804464, -0.06306134961069862], Dn : [0.22705563416539057, 0.7927437652503709, 0.5656881310849797], sine : [-0.09153277051614403, -0.022817463807694473, 0.06871530670844961] },
+                    { n : 4, Cn : [-5.115390976200317e-17, -9.536459377329626e-13, -5.224973830184475e-13], Dn : [-3.564338301556678e-05, 0.4805004659895472, -0.8769944702866589], sine : [1.0874024500218264e-12, -2.623812164728332e-17, -5.857064489769693e-17] },
+                    { n : -4, Cn : [-1.5081351833710324e-17, 9.535487932183079e-13, 5.224441607630143e-13], Dn : [3.564338301556629e-05, -0.48050046598954715, 0.8769944702866588], sine : [-1.0872916815011189e-12, -3.184793948881132e-17, 2.6741108276928116e-17] },
+                    { n : 5, Cn : [-1.0480389189641621e-13, -2.0960533054491722e-13, -1.0480143862694951e-13], Dn : [-0.5773502692094121, 0.5773502691500506, -0.5773502692094147], sine : [1.8152283281641806e-13, -1.4163957873129078e-18, -1.8152424921220447e-13] },
+                    { n : -5, Cn : [-0.01215854203635052, -0.02431708407520131, -0.012158542036350523], Dn : [0.5773502692094122, -0.5773502691500505, 0.5773502692094145], sine : [0.021059212554364617, -2.8982836853420974e-17, -0.021059212554364562] },
+                    { n : 6, Cn : [2.0869720130078265e-17, 3.865293763978418e-17, 3.596521733937248e-17], Dn : [-0.4540484612676661, 0.7258831650643323, -0.5166561966111042], sine : [-4.6076825543347386e-17, -5.5474813653548246e-18, 3.269928536084708e-17] },
+                    { n : -6, Cn : [-7.009681135377039e-17, -9.973978152186125e-17, -7.85281957810401e-17], Dn : [0.4540484612676661, -0.7258831650643324, 0.5166561966111042], sine : [1.0853347147224026e-16, -5.603454880977839e-19, -9.616878961356658e-17] },
+                    { n : 7, Cn : [6.112927015306303e-15, 1.2222787443857292e-14, 6.109860428472923e-15], Dn : [0.5773502691908551, -0.5773502691871675, 0.577350269190855], sine : [1.0584359184048472e-14, -1.7704947337474776e-18, -1.0586129678782212e-14] },
+                    { n : -7, Cn : [-0.006203337773988104, -0.012406675548055433, -0.006203337773988089], Dn : [-0.5773502691908552, 0.5773502691871675, -0.5773502691908547], sine : [-0.010744496201104346, 7.915350258877054e-18, 0.01074449620110436] },
+                    { n : 8, Cn : [-2.985079094122892e-17, -1.0669081052183626e-16, -2.614062618826142e-17], Dn : [0.9203784435215723, -0.31445719333381195, 0.23242244784320984], sine : [-3.301744728701029e-17, -1.712127494321492e-17, 1.0758271806431588e-16] },
+                    { n : -8, Cn : [-4.68047344698607e-17, -1.6348241090540103e-16, -3.584056320397222e-17], Dn : [-0.9203784435215723, 0.3144571933338119, -0.2324224478432098], sine : [-4.926730503456695e-17, -2.2108410820471942e-17, 1.6518377232839385e-16] },
+                    { n : 9, Cn : [-0.007177778397319919, 0.00881154785777647, -0.006829062022701504], Dn : [-0.7647004415199486, -0.13450969531185092, 0.6301907462080895], sine : [0.0036951406511669203, 0.010398459094630465, 0.006703318443464184] },
+                    { n : -9, Cn : [-0.0071777783973199305, 0.008811547857776486, -0.006829062022701515], Dn : [0.7647004415199486, 0.13450969531185086, -0.6301907462080895], sine : [0.003695140651166927, 0.010398459094630481, 0.006703318443464196] },
+                ]
+                this.vector = [
+                    
+                ]
+                this.points = [
+
+                ]
+                for (let i = 0; i < this.limit; i++) {
+                    this.vector.push(new Rotating_Vector(this.data[i].n, this.data[i].Cn, this.data[i].Dn, this.data[i].sine))
+                }
+                let summonSphere = 0
+                let fourier = setInterval(
+                    ()=>{
+                        let current_position = [0, 0, 0]
+                        for (let i=0;i<this.limit;i++){
+                            this.vector[i].updateVector(0.01, current_position)
+                            for (let k=0;k<3;k++){
+                                current_position[k] += this.vector[i].headWeight[k]
+                            }
+                        }
+                        summonSphere+=1
+                        if (summonSphere%5==0 && this.points.length<2*Math.PI*20){
+                            this.points.push(new Sphere(0.01, current_position[0], current_position[1], current_position[2], 0xffffff))
+                        }
+                    },
+                    10
+                )
+            }
+
+        }
+
+        const CFS = new Complex_Fourier_Series(19)
+        
+        // const sphere1 = new Sphere(0.5, 0, 0, 0, 0xffffff, 64, true, 0.5)
+        // const v = new Rotating_Vector(1, [-0.30396355092700245, -0.607927101854005, -0.30396355092700234], [-0.5773502691896258, 0.5773502691896256, -0.5773502691896257], [0.526480313854618, -3.1708083473269704e-17, -0.5264803138546182], true)
+        const x = new Rotating_Vector(1, [10, 0, 0], [0, 0, 0], [0, 0, 0], true, 0x87cefa)
+        const y = new Rotating_Vector(1, [0, 10, 0], [0, 0, 0], [0, 0, 0], true, 0x87cefa)
+        const z = new Rotating_Vector(1, [0, 0, 10], [0, 0, 0], [0, 0, 0], true, 0x87cefa)
+
+        //sys
+        function update(){
+            t += d;
+        }
+        function render(){
+            renderer.render(scene, camera);
+        }
+        function GameLoop(){
+            requestAnimationFrame(GameLoop);
+            update();
+            render();
+        }
+
+        //play
+        GameLoop();
+    </script>
+</body>
+</html>
