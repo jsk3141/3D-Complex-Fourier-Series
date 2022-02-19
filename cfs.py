@@ -5,24 +5,51 @@ n=0
 axis=1
 nfin = 10
 
-def f(t):
-    if 0 <= t < (math.pi*2/6):
-        return [0, 6*t/(math.pi*2), 0, 0]
-    elif (math.pi*2/6) <= t < (math.pi*2*2/6):
-        return [0, 1, 6*(t-(math.pi*2/6))/(math.pi*2), 0]
-    elif (math.pi*2*2/6) <= t < (math.pi*2*3/6):
-        return [0, 1, 1, 6*(t-(math.pi*2*2/6))/(math.pi*2)]
-    elif (math.pi*2*3/6) <= t < (math.pi*2*4/6):
-        return [0, 1 - (6*(t-(math.pi*2*3/6)))/(math.pi*2), 1, 1]
-    elif (math.pi*2*4/6) <= t < (math.pi*2*5/6):
-        return [0, 0, 1 - (6*(t-(math.pi*2*4/6)))/(math.pi*2), 1]
-    elif (math.pi*2*5/6) <= t < (math.pi*2*6/6):
-        return [0, 0, 0, 1 - (6*(t-(math.pi*2*5/6)))/(math.pi*2)]
-    else:
+
+class Curve_Loader:
+    def __init__(self):
+        self.period=2*math.pi
+        self.points=[]
+        self.points_length=len(self.points)
+        # self.T=self.period/self.points_length
+        pass
+    def addPoint(self, P):
+        self.points.append(P)
+        self.points_length=len(self.points)
+        self.T=self.period/self.points_length
+        pass
+    def loadCurve(self):
+        # if self.points[-1] != self.points[0]:
+        self.points.append(self.points[0])
+        pass
+    def curve(self, t):
         if t<0:
-            return f(t+math.pi*2)
-        else:
-            return f(t-math.pi*2)
+            return self.curve(t+self.period)
+        elif t>=self.period:
+            return self.curve(t-self.period)
+
+        if self.points_length<=1:
+            return
+        index = int(t//(self.T))
+        fr=self.points[index]
+        to = self.points[index+1]
+        rem = t-(index*self.T)
+        rem_per = rem/self.T
+        rem_per_rev = 1-rem_per
+        # print(fr, to, rem)
+        vec = [0, rem_per*to[0]+rem_per_rev*fr[0], rem_per*to[1]+rem_per_rev*fr[1], rem_per*to[2]+rem_per_rev*fr[2]]
+        return vec
+
+MyCurve = Curve_Loader()
+MyCurve.addPoint([0, 0, 0])
+MyCurve.addPoint([1, 0, 0])
+MyCurve.addPoint([1, 1, 1])
+MyCurve.addPoint([0, 1, 0])
+MyCurve.loadCurve()
+
+
+def f(t):
+    return MyCurve.curve(t)
 
 def f_c(t, axis):
     return f(t)[axis]
@@ -154,9 +181,11 @@ class Ellipse(Quaternion):
 
         self.plus_way_rotation_cosine = self.add_vector( self.scale_vector(scale1, self.x_hat), self.scale_vector(scale2, self.y_hat) )
         self.plus_way_rotation_sine = self.add_vector( self.scale_vector(scale1, self.y_hat), self.scale_vector(-scale2, self.x_hat) )
+        self.plus_way_rotation_Dn = self.get_scaled_directional_vector( self.cross_product( self.plus_way_rotation_sine, self.plus_way_rotation_cosine ) )
 
         self.minus_way_rotation_cosine = self.add_vector( self.scale_vector(scale3, self.x_hat), self.scale_vector(scale4, self.y_hat) )
         self.minus_way_rotation_sine = self.add_vector( self.scale_vector(scale3, self.y_hat), self.scale_vector(-scale4, self.x_hat) )
+        self.minus_way_rotation_Dn = self.get_scaled_directional_vector( self.cross_product( self.minus_way_rotation_cosine, self.minus_way_rotation_sine ) )
 
 
         # self.C = ( ( a**2 + c**2 + e**2 ) - ( b**2 + d**2 + f**2 ) ) / ( a*b + c*d + e*f ) # constant for calculating tp
@@ -240,12 +269,16 @@ class Ellipse(Quaternion):
         cross = [0, u2*v3 - u3*v2, u3*v1 - u1*v3, u1*v2 - u2*v1]
         return cross
 
-    def print_values(self):
+    def print_values(self, n=0):
         # print(f"Original : \nplus - {self.pn_original}\nminus - {self.mn_original}\nt - {self.t_original}")
         # print(f"plus-way rotation >>>>>>>>>>> \nCn : {self.pCn[1:]}\nDn : {self.pDn[1:]}\ncosine : {self.plus_way_rotation_cosine[1:]}\nsine : {self.plus_way_rotation_sine[1:]}")
         # print(f"minus-way rotation >>>>>>>>>>>>>> \nCn : {self.mCn[1:]}\nDn : {self.mDn[1:]}\ncosine : {self.minus_way_rotation_cosine[1:]}\nsine : {self.minus_way_rotation_sine[1:]}")
-        print(f"plus-way rotation >>>>>>>>>>> \ncosine : {self.plus_way_rotation_cosine[1:]}\nsine : {self.plus_way_rotation_sine[1:]}")
-        print(f"minus-way rotation >>>>>>>>>>>>>> \ncosine : {self.minus_way_rotation_cosine[1:]}\nsine : {self.minus_way_rotation_sine[1:]}")
+        arrow_open = "{"
+        arrow_close = "}"
+        # print(f"plus-way rotation >>>>>>>>>>> \ncosine : {self.plus_way_rotation_cosine[1:]}\nsine : {self.plus_way_rotation_sine[1:]}\nDn : {self.plus_way_rotation_Dn[1:]}")
+        # print(f"minus-way rotation >>>>>>>>>>>>>> \ncosine : {self.minus_way_rotation_cosine[1:]}\nsine : {self.minus_way_rotation_sine[1:]}\nDn : {self.minus_way_rotation_Dn[1:]}")
+        print(f"{arrow_open} n : {str(n)}, Cn : {self.plus_way_rotation_cosine[1:]}, Dn : {self.plus_way_rotation_Dn[1:]}, sine : {self.plus_way_rotation_sine[1:]} {arrow_close},")
+        print(f"{arrow_open} n : {str(-n)}, Cn : {self.minus_way_rotation_cosine[1:]}, Dn : {self.minus_way_rotation_Dn[1:]}, sine : {self.minus_way_rotation_sine[1:]} {arrow_close},")
         pass
 
 
@@ -257,11 +290,11 @@ class Ellipse(Quaternion):
 
 el = []
 for k in range(nfin):
-    print("-------------------------------------------------------------------------------------------------------------"+str(k)+"---------------------------------")
+    # print("-------------------------------------------------------------------------------------------------------------"+str(k)+"---------------------------------")
     if k==0:
         el.append([zero_x, zero_y, zero_z])
         print(el[0])
         continue
     ell = Ellipse(cos_x[k], sin_x[k], cos_y[k], sin_y[k], cos_z[k], sin_z[k])
     el.append(ell)
-    ell.print_values()
+    ell.print_values(k)
